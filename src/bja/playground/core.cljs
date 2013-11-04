@@ -53,7 +53,8 @@
   (raw (str "&" (name e) ";")))
 
 (defpartial content []
-  [:div.container.theme-showcase
+  [:div.container {:style "margin-top: 100px;"}
+   (comment
    ;; main jumbotron for a primary marketing message or call to action
    [:div.jumbotron
     [:h1 "Hello World!"]
@@ -66,26 +67,30 @@
    [:div.page-header
     [:h1 "Fruit"]]
 
-    [:div.row
+    [:div.row {:style "padding-top: 500px;"}
      [:div.col-md-4
       [:button#chart-toggle.btn.btn-primary "Toggle Chart"]]
      [:div.col-md-8
-      [:div#chart]]]
-
+      [:div#chart]]])
    [:div#entrypoint]
    ])
 
 (def test-layout
+  (atom
   {:display-name "Two Column Layout"
    :type :two-column
    :containers [{:display-name "left"
-                 :widgets [{:display-name "Table"
+                 :widgets [{:display-name "Chicago, IL"
+                            :private-data {:coordinates [41.88 -87.64]
+                                           :zoom 12}
+                            :type :map-point}
+                           {:display-name "Random Table"
                             :private-data {:labels ["A" "B" "C"]
                                            :rows [[1, 2, 3]
                                                   ["Foo" "Bar" "Baz"]
                                                   ["Spam" "Ham" "Eggs"]]}
                             :type :table}
-                           {:display-name "Pie Chart"
+                           {:display-name "Browsers"
                             :private-data {:series [{:type :pie
                                                      :name "Browser Share"
                                                     :data [["FireFox" 45.0]
@@ -98,7 +103,7 @@
                            ]
                  :selector "-container-left"}
                 {:display-name "right"
-                 :widgets [{:display-name "Pie Chart"
+                 :widgets [{:display-name "Device Types"
                             :private-data {:series [{:type :pie
                                                      :name "Device Type"
                                                     :data [["Smart Phone" 30.0]
@@ -106,7 +111,7 @@
                                                            ["Desktop" 40.0]
                                                            ["Feature Phone" 5.0]]}]}
                             :type :pie}
-                           {:display-name "Bar Chart"
+                           {:display-name "Healthy Food Chart"
                             :private-data {:xAxis {:categories ["Apples" "Oranges" "Bananas"]}
                                            :yAxis {:title {:text "Fruit Eaten"}}
                                            :series [{:name "Brandon"
@@ -114,7 +119,81 @@
                                                     {:name "Phil"
                                                      :data [5 9 2]}]}
                             :type :bar}]
-                 :selector "-container-right"}]})
+                 :selector "-container-right"}]}))
+
+(def other-test-layout
+  (atom
+  {:display-name "Two Column Layout"
+   :type :four-areas
+   :containers [{:display-name "top"
+                 :widgets [{:display-name "Chicago, IL"
+                            :private-data {:coordinates [41.88 -87.64]
+                                           :zoom 12}
+                            :type :map-point}
+                           ]
+                 :selector "-container-top"}
+                {:display-name "left"
+                 :widgets [{:display-name "Chicago, IL"
+                            :private-data {:coordinates [41.88 -87.64]
+                                           :zoom 12}
+                            :type :map-point}
+                           {:display-name "Random Table"
+                            :private-data {:labels ["A" "B" "C"]
+                                           :rows [[1, 2, 3]
+                                                  ["Foo" "Bar" "Baz"]
+                                                  ["Spam" "Ham" "Eggs"]]}
+                            :type :table}
+                           {:display-name "Browsers"
+                            :private-data {:series [{:type :pie
+                                                     :name "Browser Share"
+                                                    :data [["FireFox" 45.0]
+                                                           ["IE" 26.8]
+                                                           ["Chrome" 12.8]
+                                                           ["Safari" 8.5]
+                                                           ["Opera" 6.2]
+                                                           ["Other" 0.7]]}]}
+                            :type :pie}
+                           ]
+                 :selector "-container-left"}
+                {:display-name "middle"
+                 :widgets [{:display-name "Device Types"
+                            :private-data {:series [{:type :pie
+                                                     :name "Device Type"
+                                                    :data [["Smart Phone" 30.0]
+                                                           ["Tablet" 25.0]
+                                                           ["Desktop" 40.0]
+                                                           ["Feature Phone" 5.0]]}]}
+                            :type :pie}
+                           {:display-name "Healthy Food Chart"
+                            :private-data {:xAxis {:categories ["Apples" "Oranges" "Bananas"]}
+                                           :yAxis {:title {:text "Fruit Eaten"}}
+                                           :series [{:name "Brandon"
+                                                     :data [1 0 4]}
+                                                    {:name "Phil"
+                                                     :data [5 9 2]}]}
+                            :type :bar}]
+                 :selector "-container-middle"}
+                 {:display-name "right"
+                 :widgets [{:display-name "Device Types"
+                            :private-data {:series [{:type :pie
+                                                     :name "Device Type"
+                                                    :data [["Smart Phone" 30.0]
+                                                           ["Tablet" 25.0]
+                                                           ["Desktop" 40.0]
+                                                           ["Feature Phone" 5.0]]}]}
+                            :type :pie}
+                           {:display-name "Healthy Food Chart"
+                            :private-data {:xAxis {:categories ["Apples" "Oranges" "Bananas"]}
+                                           :yAxis {:title {:text "Fruit Eaten"}}
+                                           :series [{:name "Brandon"
+                                                     :data [1 0 4]}
+                                                    {:name "Phil"
+                                                     :data [5 9 2]}]}
+                            :type :bar}]
+                 :selector "-container-right"}
+
+
+                ]}))
 
 (defn deep-merge
   "Recursively merges maps. If keys are not maps, the last value w"
@@ -156,6 +235,25 @@
                 [:div.row
                  [:div {:id (str magic-prefix "-container-right")}]]]]))))
 
+(defmethod render-layout :four-areas
+  [layout]
+  (let [magic-prefix (name (gensym))]
+    (append ($ (:selector layout))
+            (html
+             [:div.row {:data-magic-prefix magic-prefix}
+              [:div.row
+               [:div {:id (str magic-prefix "-container-top")}]]
+              [:div row
+               [:div.col-md-4
+                [:div.row
+                 [:div {:id (str magic-prefix "-container-left")}]]]
+               [:div.col-md-4
+                [:div.row
+                 [:div {:id (str magic-prefix "-container-middle")}]]]
+               [:div.col-md-4
+                [:div.row
+                 [:div {:id (str magic-prefix "-container-right")}]]]]]))))
+
 ;; rendering assumes that you have already merged a selector
 ;; into widget by someone higher
 (defmulti render-widget :type)
@@ -163,6 +261,7 @@
 (defmethod render-widget :table
   [widget]
   (.log js/console (str "attempting to render: :table --\n" (pr-str widget)))
+  (->
   (append ($ (:selector widget))
           (html
            [:div.col-md-12
@@ -176,6 +275,9 @@
                [:tr
                 (for [column row]
                   [:td column])])]]])))
+  (->
+   ($ (str (:selector widget) " div table"))
+   .dataTable))
 
 (defmethod render-widget :pie
   [widget]
@@ -193,19 +295,46 @@
                 (deep-merge  {:chart {:type "bar"}
                               :credits {:enabled false}}
                              (:private-data widget))))
+
+
+(defmethod render-widget :map-point
+  [widget]
+  (.log js/console (str "attempting to render: map --\n" (pr-str widget)))
+  ;;(comment
+  (-> ($ (:selector widget))
+      (css {:height "300px"}))
+  (let [my-map (-> (.-L js/window)
+      (.map (subs (:selector widget) 1))
+      (.setView (clj->js (get-in widget [:private-data :coordinates])) (get-in widget [:private-data :zoom])))]
+  (-> (.-L js/window)
+      (.tileLayer "http://{s}.tile.osm.org/{z}/{x}/{y}.png"
+                  (clj->js {:attribution "&copy; <a href=\"http://osm.org/copyright\">OpenStreetMap</a> contributors"}))
+      (.addTo my-map)))
+  ;;)
+  )
+
+
 (defn build-container [container]
   (let [selector (:selector container)]
     (doseq [widget (:widgets container)
             :let [widget-id (name (gensym))]]
-      (append ($ selector) (html [:div.row [:div {:id widget-id}]]))
-      (render-widget (assoc widget :selector (str "#" widget-id))))))
+      (append ($ selector) (html [:div.row.layout-container {:style {:padding "1em"}}
+                                  [:div.col-md-12 [:h3.text-center (:display-name widget)]]
+                                  [:div {:id widget-id}]]))
+      (render-widget (assoc widget :selector (str "#" widget-id))))
+    ))
 
 (defn build-layout [layout]
   (let [magic-prefix (data (-> (render-layout layout) .children .first) :magic-prefix)]
     (doseq [container* (:containers layout)
             :let [container (update-in container* [:selector] #(str "#" magic-prefix %))]]
       (.log js/console (str "container value is: " (pr-str container)))
-      (build-container container))))
+      (build-container container)
+      (.sortable ($ (:selector container))
+                 (clj->js {:connectWith ".layout-container"}))
+      ;(.resizable ($ (:selector container))
+      ;            (clj->js {:animate true}))
+      (.disableSelection ($ (:selector container))))))
 
 (defn gendiv
   "This was an idea to use gensym as a source of unique div names.
@@ -256,17 +385,14 @@
 
 
 
-(def my-layout (assoc test-layout :selector "#entrypoint"))
+(def my-layout (assoc @other-test-layout :selector "#entrypoint"))
 (build-layout my-layout)
 
-(deep-merge
- {:plotOptions {:pie {:dataLabels {:enabled true}
-                                                 :showInLegend true}}
-                             :credits {:enabled false}}
-(get-in my-layout [:containers 0 :widgets 1 :private-data]))
 
 (defn layout-magic-prefix [layout]
   (-> ($ (:selector my-layout))
       .children
       .first
       (data :magic-prefix)))
+
+(+ 1 2)
