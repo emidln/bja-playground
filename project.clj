@@ -5,7 +5,8 @@
   :dependencies [[org.clojure/clojure "1.5.1"]
                  [org.clojure/clojurescript "0.0-1978"]
                  [jayq "2.4.0"]
-                 [crate "0.2.4"]]
+                 [crate "0.2.4"]
+                 [secretary "0.4.0"]]
 
   :plugins [[lein-cljsbuild "0.3.4"]]
 

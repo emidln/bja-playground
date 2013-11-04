@@ -1,8 +1,10 @@
 (ns bja.playground.core
     (:refer-clojure :exclude [remove])
     (:require-macros [crate.def-macros :refer [defpartial]]
+                     [secretary.macros :refer [defroute]]
                      [bja.playground.macros :refer [js-fn jq-fn]])
     (:require [crate.core :refer [html raw]]
+              [secretary.core :as secretary]
               [jayq.core :refer [$
                                  append
                                  bind
@@ -27,10 +29,9 @@
      [:a.navbar-brand {:href "#"} "Bootstrap theme"]]
     [:div.navbar-collapse.collapse
      [:ul.nav.navbar-nav
-      [:li.active
-       [:a {:href "#"} "Home"]]
-      [:li [:a {:href "#about"} "About"]]
-      [:li [:a {:href "#contact"} "Contact"]]
+      [:li [:a {:href "javascript:bja.playground.core.goto$('/four-area-demo')"} "Four Area Demo"]]
+      [:li [:a {:href "javascript:bja.playground.core.goto$('/two-col-demo')"} "Two Col Demo"]]
+      [:li [:a {:href "#About"} "About"]]
       [:li.dropdown
        [:a.dropdown-toggle {:href "#"
                             :data-toggle "dropdown"}
@@ -53,7 +54,7 @@
   (raw (str "&" (name e) ";")))
 
 (defpartial content []
-  [:div.container {:style "margin-top: 100px;"}
+  [:div {:style "margin-top: 25px; margin-left: 50px; margin-right: 50px;"}
    (comment
    ;; main jumbotron for a primary marketing message or call to action
    [:div.jumbotron
@@ -67,7 +68,7 @@
    [:div.page-header
     [:h1 "Fruit"]]
 
-    [:div.row {:style "padding-top: 500px;"}
+    [:div.row {:style "padding-top: 200px;"}
      [:div.col-md-4
       [:button#chart-toggle.btn.btn-primary "Toggle Chart"]]
      [:div.col-md-8
@@ -225,6 +226,8 @@
 (defmethod render-layout :two-column
   [layout]
   (let [magic-prefix (name (gensym))]
+    (-> ($ (:selector layout))
+        (.empty))
     (append ($ (:selector layout))
             (html
              [:div.row {:data-magic-prefix magic-prefix}
@@ -238,12 +241,14 @@
 (defmethod render-layout :four-areas
   [layout]
   (let [magic-prefix (name (gensym))]
+        (-> ($ (:selector layout))
+        (.empty))
     (append ($ (:selector layout))
             (html
              [:div.row {:data-magic-prefix magic-prefix}
               [:div.row
                [:div {:id (str magic-prefix "-container-top")}]]
-              [:div row
+              [:div.row
                [:div.col-md-4
                 [:div.row
                  [:div {:id (str magic-prefix "-container-left")}]]]
@@ -319,8 +324,8 @@
     (doseq [widget (:widgets container)
             :let [widget-id (name (gensym))]]
       (append ($ selector) (html [:div.row.layout-container {:style {:padding "1em"}}
-                                  [:div.col-md-12 [:h3.text-center (:display-name widget)]]
-                                  [:div {:id widget-id}]]))
+                                  [:div.col-md-12.widget-title [:h3.text-center (:display-name widget)]]
+                                  [:div.widget-content {:id widget-id}]]))
       (render-widget (assoc widget :selector (str "#" widget-id))))
     ))
 
@@ -334,7 +339,13 @@
                  (clj->js {:connectWith ".layout-container"}))
       ;(.resizable ($ (:selector container))
       ;            (clj->js {:animate true}))
-      (.disableSelection ($ (:selector container))))))
+      (.disableSelection ($ (:selector container)))))
+    (bind ($ ".widget-title") :click
+      (jq-fn []
+             (.log js/console $this)
+             (.log js/console (.next $this ".widget-content"))
+             (-> (.next $this ".widget-content")
+                 (.toggle)))))
 
 (defn gendiv
   "This was an idea to use gensym as a source of unique div names.
@@ -383,16 +394,13 @@
               (data $this :visible true)
               (fruit-bar-graph ($ "#chart"))))))
 
+(defroute "/two-col-demo" []
+  (build-layout (assoc @test-layout :selector "#entrypoint")))
 
+(defroute "/four-area-demo" []
+  (build-layout (assoc @other-test-layout :selector "#entrypoint")))
 
-(def my-layout (assoc @other-test-layout :selector "#entrypoint"))
-(build-layout my-layout)
+(secretary/dispatch! "/four-area-demo")
 
-
-(defn layout-magic-prefix [layout]
-  (-> ($ (:selector my-layout))
-      .children
-      .first
-      (data :magic-prefix)))
-
-(+ 1 2)
+(defn ^:export goto [place]
+  (secretary/dispatch! place))
