@@ -66,13 +66,146 @@
    [:div.page-header
     [:h1 "Fruit"]]
 
-   [:div.container
     [:div.row
      [:div.col-md-4
       [:button#chart-toggle.btn.btn-primary "Toggle Chart"]]
      [:div.col-md-8
-      [:div#chart]]]]
+      [:div#chart]]]
+
+   [:div#entrypoint]
    ])
+
+(def test-layout
+  {:display-name "Two Column Layout"
+   :type :two-column
+   :containers [{:display-name "left"
+                 :widgets [{:display-name "Table"
+                            :private-data {:labels ["A" "B" "C"]
+                                           :rows [[1, 2, 3]
+                                                  ["Foo" "Bar" "Baz"]
+                                                  ["Spam" "Ham" "Eggs"]]}
+                            :type :table}
+                           {:display-name "Pie Chart"
+                            :private-data {:series [{:type :pie
+                                                     :name "Browser Share"
+                                                    :data [["FireFox" 45.0]
+                                                           ["IE" 26.8]
+                                                           ["Chrome" 12.8]
+                                                           ["Safari" 8.5]
+                                                           ["Opera" 6.2]
+                                                           ["Other" 0.7]]}]}
+                            :type :pie}
+                           ]
+                 :selector "-container-left"}
+                {:display-name "right"
+                 :widgets [{:display-name "Pie Chart"
+                            :private-data {:series [{:type :pie
+                                                     :name "Device Type"
+                                                    :data [["Smart Phone" 30.0]
+                                                           ["Tablet" 25.0]
+                                                           ["Desktop" 40.0]
+                                                           ["Feature Phone" 5.0]]}]}
+                            :type :pie}
+                           {:display-name "Bar Chart"
+                            :private-data {:xAxis {:categories ["Apples" "Oranges" "Bananas"]}
+                                           :yAxis {:title {:text "Fruit Eaten"}}
+                                           :series [{:name "Brandon"
+                                                     :data [1 0 4]}
+                                                    {:name "Phil"
+                                                     :data [5 9 2]}]}
+                            :type :bar}]
+                 :selector "-container-right"}]})
+
+(defn deep-merge
+  "Recursively merges maps. If keys are not maps, the last value w"
+  [& vals]
+  (if (every? map? vals)
+    (apply merge-with deep-merge vals)
+    (last vals)))
+
+(defn data
+  ([$elem] (.data $elem))
+  ([$elem k] (.data $elem (clj->js k)))
+  ([$elem k v] (.data $elem (name k) (clj->js v))))
+
+(defn create-chart
+  "Given a jQuery selector and a highcarts config, construct
+  the highchart in a div below the given selector.
+
+  Use kill-chart to remove a chart from location while leaving the location
+  container intact."
+  [$location config]
+  (-> $location
+      (append (html [:div.col-md-12]))
+      (.highcharts (clj->js config))))
+
+;; rendering assuming that you have already merged a selector
+;; into layout before-hand. Most of the time we just hard-code this to
+;; "#main-content", but for testing it could be something else
+(defmulti render-layout :type)
+(defmethod render-layout :two-column
+  [layout]
+  (let [magic-prefix (name (gensym))]
+    (append ($ (:selector layout))
+            (html
+             [:div.row {:data-magic-prefix magic-prefix}
+               [:div.col-md-6
+                [:div.row
+                 [:div {:id (str magic-prefix "-container-left")}]]]
+               [:div.col-md-6
+                [:div.row
+                 [:div {:id (str magic-prefix "-container-right")}]]]]))))
+
+;; rendering assumes that you have already merged a selector
+;; into widget by someone higher
+(defmulti render-widget :type)
+
+(defmethod render-widget :table
+  [widget]
+  (.log js/console (str "attempting to render: :table --\n" (pr-str widget)))
+  (append ($ (:selector widget))
+          (html
+           [:div.col-md-12
+           [:table
+            [:thead
+             [:tr
+              (for [label (-> widget :private-data :labels)]
+                [:th label])]]
+            [:tbody
+             (for [row (-> widget :private-data :rows)]
+               [:tr
+                (for [column row]
+                  [:td column])])]]])))
+
+(defmethod render-widget :pie
+  [widget]
+  (.log js/console (str "attempting to render: :pie --\n" (pr-str widget)))
+  (create-chart ($ (:selector widget))
+                (deep-merge {:plotOptions {:pie {:dataLabels {:enabled true}
+                                                 :showInLegend true}}
+                             :credits {:enabled false}}
+                            (:private-data widget))))
+
+(defmethod render-widget :bar
+  [widget]
+  (.log js/console (str "attempting to render: :bar --\n" (pr-str widget)))
+  (create-chart ($ (:selector widget))
+                (deep-merge  {:chart {:type "bar"}
+                              :credits {:enabled false}}
+                             (:private-data widget))))
+(defn build-container [container]
+  (let [selector (:selector container)]
+    (doseq [widget (:widgets container)
+            :let [widget-id (name (gensym))]]
+      (append ($ selector) (html [:div.row [:div {:id widget-id}]]))
+      (render-widget (assoc widget :selector (str "#" widget-id))))))
+
+(defn build-layout [layout]
+  (let [magic-prefix (data (-> (render-layout layout) .children .first) :magic-prefix)]
+    (doseq [container* (:containers layout)
+            :let [container (update-in container* [:selector] #(str "#" magic-prefix %))]]
+      (.log js/console (str "container value is: " (pr-str container)))
+      (build-container container))))
 
 (defn gendiv
   "This was an idea to use gensym as a source of unique div names.
@@ -84,17 +217,6 @@
   "
   []
   (keyword (str "div#" (name (gensym)))))
-
-(defn create-chart
-  "Given a jQuery selector and a highcarts config, construct
-  the highchart in a div below the given selector.
-
-  Use kill-chart to remove a chart from location while leaving the location
-  container intact."
-  [$location config]
-  (-> $location
-      (append (html [:div]))
-      (.highcharts (clj->js config))))
 
 (defn fruit-bar-graph
   "HighCharts intro graph"
@@ -121,12 +243,6 @@
     (append (navbar))
     (append (content)))
 
-;; this is a patched data that will make it into a future release
-(defn data
-  ([$elem] (.data $elem))
-  ([$elem k] (.data $elem (clj->js k)))
-  ([$elem k v] (.data $elem (name k) (clj->js v))))
-
 ;; Show and hide graphs
 (bind ($ "#chart-toggle") :click
       (jq-fn []
@@ -137,3 +253,20 @@
             (do
               (data $this :visible true)
               (fruit-bar-graph ($ "#chart"))))))
+
+
+
+(def my-layout (assoc test-layout :selector "#entrypoint"))
+(build-layout my-layout)
+
+(deep-merge
+ {:plotOptions {:pie {:dataLabels {:enabled true}
+                                                 :showInLegend true}}
+                             :credits {:enabled false}}
+(get-in my-layout [:containers 0 :widgets 1 :private-data]))
+
+(defn layout-magic-prefix [layout]
+  (-> ($ (:selector my-layout))
+      .children
+      .first
+      (data :magic-prefix)))
